@@ -1,0 +1,57 @@
+<!DOCTYPE html>
+<html>
+<head>
+    <title>GitHub Repository TreeView</title>
+    <style>
+        /* Add your CSS styling here */
+    </style>
+</head>
+<body>
+    <h1>GitHub Repository TreeView</h1>
+    <div id="treeview"></div>
+
+    <script>
+        const username = 'your_username'; // Replace with your GitHub username
+        const token = 'your_token'; // Replace with your GitHub personal access token
+
+        const apiUrl = `https://api.github.com/users/${username}/repos`;
+
+        async function fetchGitHubRepos() {
+            try {
+                const response = await fetch(apiUrl, {
+                    headers: {
+                        Authorization: `token ${token}`,
+                    },
+                });
+
+                if (!response.ok) {
+                    throw new Error('Failed to fetch GitHub repositories');
+                }
+
+                const data = await response.json();
+                renderTreeView(data);
+            } catch (error) {
+                console.error('Error:', error);
+            }
+        }
+
+        function renderTreeView(repositories) {
+            const treeviewElement = document.getElementById('treeview');
+            const ul = document.createElement('ul');
+
+            repositories.forEach((repo) => {
+                const li = document.createElement('li');
+                const a = document.createElement('a');
+                a.textContent = repo.name;
+                a.href = repo.html_url;
+                li.appendChild(a);
+                ul.appendChild(li);
+            });
+
+            treeviewElement.appendChild(ul);
+        }
+
+        fetchGitHubRepos();
+    </script>
+</body>
+</html>
