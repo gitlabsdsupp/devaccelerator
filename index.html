@@ -100,125 +100,113 @@
                     </div>
 
 
-  <h1>Projetos disponíveis no GitHub</h1>
-    <p>Introduza o username e token do GitHub, clique em OK pra visualizar o conteúdo.</p>
-    <form id="form">
-        <label for="username">Username:</label>
-        <input type="text" id="username" name="username" placeholder="Username Git" required>
-        <label for="token">Token:</label>
-        <input style="width:300px; font-size:12px;" type="password" id="token" name="token" placeholder="Git token" required>
-        <button type="submit" id="submit1">OK</button>
-    </form>
-    <div id="result">
-        <h2>Selecione o projeto</h2>
-        <select id="repos">
-            <!-- The options will be dynamically generated -->
-        </select>
-        <h2>Conteúdo do projeto</h2>
-        <textarea id="file" rows="10" cols="50" readonly>
-            <!-- The file contents will be dynamically displayed -->
-        </textarea>
-    </div>
-    <script>
-        // Get the form, result, repos, and file elements
-        var form = $("#form");
-        var result = $("#result");
-        var repos = $("#repos");
-        var file = $("#file");
+<h1>Projetos disponíveis no GitHub</h1>
+<p>Introduza o username e token do GitHub, clique em OK para visualizar o conteúdo.</p>
+<form id="form">
+    <label for="username">Username:</label>
+    <input type="text" id="username" name="username" placeholder="Username Git" required>
+    <label for="token">Token:</label>
+    <input style="width:300px; font-size:12px;" type="password" id="token" name="token" placeholder="Git token" required>
+    <button type="submit" id="submit1">OK</button>
+</form>
+<div id="result">
+    <h2>Selecione o projeto</h2>
+    <select id="repos">
+        <!-- Add a blank option by default -->
+        <option value="">Select a repository</option>
+        <!-- The options will be dynamically generated -->
+    </select>
+    <h2>Ambientes disponíveis</h2>
+    <!-- Use a separate <div> to display the content with clickable links -->
+    <div id="file-container"></div>
+</div>
+<script src="https://code.jquery.com/jquery-3.6.0.min.js"></script>
+<script>
+    // Get the form, result, repos, and file elements
+    var form = $("#form");
+    var result = $("#result");
+    var repos = $("#repos");
+    var fileContainer = $("#file-container");
+    var username; // Declare the username variable
 
-        // Hide the result element initially
-        result.hide();
+    // Hide the result element initially
+    result.hide();
 
-        // Add a submit event listener to the form
-        form.submit(function(event) {
-            // Prevent the default form submission behavior
-            event.preventDefault();
+    // Add a submit event listener to the form
+    form.submit(function (event) {
+        // Prevent the default form submission behavior
+        event.preventDefault();
 
-            // Get the username and token values from the input elements
-            var username = $("#username").val();
-            var token = $("#token").val();
+        // Get the username and token values from the input elements
+        username = $("#username").val(); // Store the GitHub username
+        var token = $("#token").val();
 
-            // Check if the username and token are not empty
-            if (username && token) {
-                // Set the authorization header with the token
-                $.ajaxSetup({
-                    headers: {
-                        "Authorization": "token " + token
-                    }
-                });
-
-                // Make a GET request to the GitHub API to get the user's repositories
-                $.get("https://api.github.com/users/" + username + "/repos", function(data) {
-                    // Check if the data is not empty
-                    if (data.length > 0) {
-                        // Clear the repos element
-                        repos.empty();
-
-                        // Loop through the data array
-                        for (var i = 0; i < data.length; i++) {
-                            // Get the repository name and url from each item
-                            var name = data[i].name;
-                            var url = data[i].url;
-
-                            // Create an option element with the name and url as value
-                            var option = $("<option></option>").text(name).val(url);
-
-                            // Append the option element to the repos element
-                            repos.append(option);
-                        }
-
-                        // Show the result element
-                        result.show();
-
-                        // Trigger a change event on the repos element to display the first file contents
-                        repos.change();
-                    } else {
-                        // Display an error message
-                        alert("No repositories found for this user.");
-                    }
-                }).fail(function(error) {
-                    // Display an error message
-                    alert("Invalid username or token.");
-                });
-            } else {
-                // Display a warning message
-                alert("Please enter a username and a token.");
-            }
-        });
-
-        // Add a change event listener to the repos element
-        repos.change(function() {
-            // Get the selected repository url from the value of the repos element
-            var repoUrl = repos.val();
-
-            // Make a GET request to the GitHub API to get the repository contents
-            $.get(repoUrl + "/contents", function(data) {
-                // Check if the data is not empty
-                if (data.length > 0) {
-                    // Create an empty string to store the list of files and folders
-                    var list = "";
-
-                    // Loop through the data array
-                    for (var i = 0; i < data.length; i++) {
-                        // Get the name and type from each item
-                        var name = data[i].name;
-                        var type = data[i].type;
-
-                        // Append the name and type to the list with a new line
-                        list += name + " (" + type + ")\n";
-                    }
-
-                    // Display the list in the file element
-                    file.val(list);
-                } else {
-                    // Display an error message
-                    file.val("The repository is empty.");
+        // Check if the username and token are not empty
+        if (username && token) {
+            // Set the authorization header with the token
+            $.ajaxSetup({
+                headers: {
+                    "Authorization": "token " + token
                 }
-            }).fail(function(error) {
-                // Display an error message
-                file.val("Could not get the repository contents.");
             });
+
+            // Fetch the list of repositories for the user
+            $.get("https://api.github.com/users/" + username + "/repos", function (data) {
+                // Iterate through the repositories and add them to the dropdown
+                data.forEach(function (repo) {
+                    repos.append($('<option>', {
+                        value: repo.name,
+                        text: repo.name
+                    }));
+                });
+
+                // Show the result element
+                result.show();
+            });
+        }
+    });
+
+    // Add an event listener to the select element to fetch file content when a repository is selected
+    repos.change(function () {
+        var selectedRepo = repos.val();
+
+        if (selectedRepo) {
+            // Specify the file path
+            var filePath = 'environments.md'; // Change this to the desired file path
+
+            // Fetch the content of the file
+            $.get('https://api.github.com/repos/' + username + '/' + selectedRepo + '/contents/' + filePath)
+                .done(function (data) {
+                    // Parse the content from base64
+                    var content = atob(data.content);
+
+                    // Display the content in the file container
+                    fileContainer.html(content);
+
+                    // Make URLs inside the content clickable
+                    makeUrlsClickable();
+                })
+                .fail(function () {
+                    // Display an error message when the file is not found
+                    fileContainer.html('Este projeto não tem ambientes configurados! Por favor selecione outro projeto.');
+                });
+        } else {
+            // Clear the file container when no repository is selected
+            fileContainer.empty();
+        }
+    });
+
+    // Function to make URLs inside the content clickable
+    function makeUrlsClickable() {
+        var content = fileContainer.html();
+        // Updated regular expression to make URLs case-insensitive
+        var replacedContent = content.replace(/(https?:\/\/[^\s]+)/gi, function (url) {
+            return '<a href="' + url + '" target="_blank">' + url + '</a>';
         });
+        fileContainer.html(replacedContent);
+    }
+
+
 
 	    </script>	
 		<h2>O que pretende alterar?</h2> 
@@ -243,7 +231,7 @@
                 // Set the request method, url, and headers
                 xhr.open("POST", "https://api.openai.com/v1/chat/completions");
                 xhr.setRequestHeader("Content-Type", "application/json");
-                xhr.setRequestHeader("Authorization", "Bearer lbkFJt14U3w2W5tUB496wHVJD");
+                xhr.setRequestHeader("Authorization", "Bearer PUT_API_KEY_HERE");
 
                 // Set the request body with the input and other parameters
                 var body = JSON.stringify({
