@@ -100,138 +100,187 @@
                     </div>
 
 
-<h1>Projetos disponíveis no GitHub</h1>
-<p>Introduza o username e token do GitHub, clique em OK para visualizar o conteúdo.</p>
-<form id="form">
-    <label for="username">Username:</label>
-    <input type="text" id="username" name="username" placeholder="Username Git" required>
-    <label for="token">Token:</label>
-    <input style="width:300px; font-size:12px;" type="password" id="token" name="token" placeholder="Git token" required>
-    <button type="submit" id="submit1">OK</button>
-</form>
-<div id="result">
-    <h2>Selecione o projeto</h2>
-    <select id="repos">
-        <!-- Add a blank option by default -->
-        <option value="">Select a repository</option>
-        <!-- The options will be dynamically generated -->
-    </select>
-    <h2>Ambientes disponíveis</h2>
-    <!-- Use a separate <div> to display the content with clickable links -->
-    <div id="file-container"></div>
-</div>
-<script src="https://code.jquery.com/jquery-3.6.0.min.js"></script>
-<script>
-    // Get the form, result, repos, and file elements
-    var form = $("#form");
-    var result = $("#result");
-    var repos = $("#repos");
-    var fileContainer = $("#file-container");
-    var username; // Declare the username variable
+    <h1>Projetos disponíveis no GitHub</h1>
+    <p>Introduza o username e token do GitHub, clique em OK para visualizar o conteúdo.</p>
+    <input type="text" id="username" placeholder="Username Git" required>
+    <input style="width:300px; font-size:12px;" input type="password" id="token" placeholder="Git token" required>
+    <button id="login-button">Login</button>
 
-    // Hide the result element initially
-    result.hide();
+    <div id="repository-list">
+        <h2>Selecione o projeto</h2>
+        <ul id="repository-list-ul">
+            <!-- Repository list will be populated here -->
+        </ul>
+    </div>
 
-    // Add a submit event listener to the form
-    form.submit(function (event) {
-        // Prevent the default form submission behavior
-        event.preventDefault();
+    <div id="file-tree">
+        <h2>Conteúdo</h2>
+        <ul id="file-tree-ul">
+            <!-- File tree view will be populated here -->
+        </ul>
+    </div>
 
-        // Get the username and token values from the input elements
-        username = $("#username").val(); // Store the GitHub username
-        var token = $("#token").val();
+    <div id="environment-content">
+        <h2>Ambientes do projeto</h2>
+        <pre id="environment-content-pre">
+            <!-- Environment content will be displayed here -->
+        </pre>
+    </div>
 
-        // Check if the username and token are not empty
-        if (username && token) {
-            // Set the authorization header with the token
-            $.ajaxSetup({
+    <div id="file-content">
+        <h2>Código fonte para alteração</h2>
+        <pre id="file-content-pre">
+            <!-- File content will be displayed here -->
+        </pre>
+    </div>
+
+    <script src="https://code.jquery.com/jquery-3.6.0.min.js"></script>
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/FileSaver.js/2.0.5/FileSaver.min.js"></script>
+    <script>
+        // JavaScript to handle user interactions and GitHub API requests
+        const loginButton = document.getElementById("login-button");
+        const usernameInput = document.getElementById("username");
+        const tokenInput = document.getElementById("token");
+        const repositoryList = document.getElementById("repository-list-ul");
+        const fileTree = document.getElementById("file-tree-ul");
+        const fileContentPre = document.getElementById("file-content-pre");
+
+        loginButton.addEventListener("click", () => {
+            // Handle GitHub authentication and API requests here
+            const username = usernameInput.value;
+            const token = tokenInput.value;
+
+            // Authenticate with GitHub using the provided token
+
+            // Fetch user repositories and populate the repository list
+            fetch(`https://api.github.com/users/${username}/repos`, {
                 headers: {
-                    "Authorization": "token " + token
-                }
-            });
-
-            // Fetch the list of repositories for the user
-            $.get("https://api.github.com/users/" + username + "/repos", function (data) {
-                // Iterate through the repositories and add them to the dropdown
-                data.forEach(function (repo) {
-                    repos.append($('<option>', {
-                        value: repo.name,
-                        text: repo.name
-                    }));
+                    Authorization: `token ${token}`,
+                },
+            })
+            .then(response => response.json())
+            .then(data => {
+                // Populate the repository list
+                repositoryList.innerHTML = '';
+                data.forEach(repo => {
+                    const listItem = document.createElement('li');
+                    listItem.textContent = repo.name;
+                    listItem.addEventListener('click', () => {
+                        // Handle repository selection
+                        showFileTree(username, token, repo.name);
+                    });
+                    repositoryList.appendChild(listItem);
                 });
-
-                // Show the result element
-                result.show();
+            })
+            .catch(error => {
+                console.error("Error fetching repositories: ", error);
             });
-        }
-    });
-
-    // Add an event listener to the select element to fetch file content when a repository is selected
-    repos.change(function () {
-        var selectedRepo = repos.val();
-
-        if (selectedRepo) {
-            // Specify the file path
-            var filePath = 'environments.md'; // Change this to the desired file path
-
-            // Fetch the content of the file
-            $.get('https://api.github.com/repos/' + username + '/' + selectedRepo + '/contents/' + filePath)
-                .done(function (data) {
-                    // Parse the content from base64
-                    var content = atob(data.content);
-
-                    // Display the content in the file container
-                    fileContainer.html(content);
-
-                    // Make URLs inside the content clickable
-                    makeUrlsClickable();
-                })
-                .fail(function () {
-                    // Display an error message when the file is not found
-                    fileContainer.html('Este projeto não tem ambientes configurados! Por favor selecione outro projeto.');
-                });
-        } else {
-            // Clear the file container when no repository is selected
-            fileContainer.empty();
-        }
-    });
-
-    // Function to make URLs inside the content clickable
-    function makeUrlsClickable() {
-        var content = fileContainer.html();
-        // Updated regular expression to make URLs case-insensitive
-        var replacedContent = content.replace(/(https?:\/\/[^\s]+)/gi, function (url) {
-            return '<a href="' + url + '" target="_blank">' + url + '</a>';
         });
-        fileContainer.html(replacedContent);
-    }
 
+        function showFileTree(username, token, repoName) {
+            // Fetch and display the file tree for the selected repository
+            fetch(`https://api.github.com/repos/${username}/${repoName}/contents`, {
+                headers: {
+                    Authorization: `token ${token}`,
+                },
+            })
+            .then(response => response.json())
+            .then(data => {
+                // Populate the file tree view
+                fileTree.innerHTML = '';
+                data.forEach(item => {
+                    const listItem = document.createElement('li');
+                    listItem.textContent = item.name;
+                    listItem.addEventListener('click', () => {
+                        // Handle file/folder selection
+                        if (item.type === "dir") {
+                            // Fetch and display the contents of a folder
+                            showFileTree(username, token, repoName + '/' + item.name);
+                        } else {
+                            // Fetch and display the raw content of a file
+                            fetchAndDisplayFileContent(username, token, repoName, item.path);
+                        }
+                    });
+                    fileTree.appendChild(listItem);
+                });
 
+                // Fetch and display the content of environments.md if available
+                fetchAndDisplayEnvironmentContent(username, token, repoName);
 
-	    </script>	
-		<h2>O que pretende alterar?</h2> 
-						<textarea name="message" cols="75" rows="15" id="message" placeholder="Introduza aqui o que pretende modificar"></textarea>
-    <button id="submit">Submeter</button>	
-		<script>
+                // Trigger click on index.html by default
+                const defaultFile = data.find(item => item.name === "index.html");
+                if (defaultFile) {
+                    const defaultListItem = Array.from(fileTree.children).find(item => item.textContent === defaultFile.name);
+                    if (defaultListItem) {
+                        defaultListItem.click();
+                    }
+                }
+            })
+            .catch(error => {
+                console.error("Error fetching repository contents: ", error);
+            });
+        }
 
- <!-- // Get the input and button elements -->
+        function fetchAndDisplayFileContent(username, token, repoName, filePath) {
+            // Fetch and display the raw content of a file
+            fetch(`https://api.github.com/repos/${username}/${repoName}/contents/${filePath}`, {
+                headers: {
+                    Authorization: `token ${token}`,
+                },
+            })
+            .then(response => response.json())
+            .then(fileData => {
+                // Display the raw content of the file
+                fileContentPre.textContent = atob(fileData.content); // Decode base64 content
+            })
+            .catch(error => {
+                console.error("Error fetching file content: ", error);
+            });
+        }
+
+        function fetchAndDisplayEnvironmentContent(username, token, repoName) {
+            // Fetch and display the raw content of environments.md file
+            fetch(`https://api.github.com/repos/${username}/${repoName}/contents/environments.md`, {
+                headers: {
+                    Authorization: `token ${token}`,
+                },
+            })
+            .then(response => response.json())
+            .then(fileData => {
+                // Display the raw content of the environments.md file
+                const environmentContentPre = document.getElementById("environment-content-pre");
+                environmentContentPre.textContent = atob(fileData.content); // Decode base64 content
+            })
+            .catch(error => {
+                console.error("Error fetching environments.md content: ", error);
+            });
+        }
+    </script>
+
+    <!-- Add your HTML form and elements here -->
+    <h2>O que pretende alterar?</h2>
+    <textarea name="message" cols="75" rows="15" id="message" placeholder="Introduza aqui o que pretende modificar"></textarea>
+    <button id="submit">Submeter</button>
+
+    <script>
+        // JavaScript for ChatGPT integration
         var message = document.getElementById("message");
         var submit = document.getElementById("submit");
 
-        // Add a click event listener to the button
-        submit.addEventListener("click", function() {
-            // Get the value of the input
+        submit.addEventListener("click", function () {
             var input = message.value;
 
-            // Check if the input is not empty
             if (input) {
+                // Get the content from fileContentPre
+                var fileContent = fileContentPre.textContent;
+
                 // Create an XMLHttpRequest object
                 var xhr = new XMLHttpRequest();
 
                 // Set the request method, url, and headers
                 xhr.open("POST", "https://api.openai.com/v1/chat/completions");
                 xhr.setRequestHeader("Content-Type", "application/json");
-                xhr.setRequestHeader("Authorization", "Bearer PUT_API_KEY_HERE");
+                xhr.setRequestHeader("Authorization", "Bearer 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");
 
                 // Set the request body with the input and other parameters
                 var body = JSON.stringify({
@@ -240,59 +289,59 @@
                         {
                             role: "user",
                             content: input
+                        },
+                        {
+                            role: "assistant",
+                            content: fileContent // Include the file content in the conversation
                         }
                     ],
                     temperature: 0.8,
                     max_tokens: 2000
                 });
 
-                // Send the request
                 xhr.send(body);
 
-                // Define a function to handle the response
-                xhr.onload = function() {
-                    // Check if the status is 200 (OK)
+                xhr.onload = function () {
                     if (xhr.status == 200) {
-                        // Parse the response as JSON
                         var response = JSON.parse(xhr.responseText);
+                        var chatgptOutput = response.choices[0].message.content;
 
-                        // Get the content of the chatgpt message
-                        var output = response.choices[0].message.content;
-						
-var start = output.indexOf("<!DOCTYPE html>");
+                        var combinedResponse = input + "\nChatGPT Output: " + chatgptOutput + "\nFile Content: " + fileContent;
 
-// Find the index of the last occurrence of </html>
-var end = output.lastIndexOf("</html>");
+                        // Remove text before <!DOCTYPE html> and after </html> tags
+                        combinedResponse = combinedResponse.substring(combinedResponse.indexOf('<!DOCTYPE html>'), combinedResponse.indexOf('</html>') + 7);
 
-// Extract the substring between start and end + 7 (the length of </html>)
-var html = output.substring(start, end + 7);
+                        // Save the combined response as index.html
+                        saveResponseToIndexHtml(combinedResponse);
 
-// Create a blob object with the html and the text/html type
-var blob = new Blob([html], {type: "text/html"});
-
-// Save the blob as a new file using FileSaver.js
-saveAs(blob, "new_file.html");
-
-<!--                         // Create a blob object with the output and the text/plain type
-                       // var blob = new Blob([output], {type: "text/plain"}); -->
-
-                        // Save the blob as a text file using FileSaver.js
-                        saveAs(blob, "chatgpt_response.txt");
-
-                        // Display a success message
-                        alert("Response saved to chatgpt_response.txt");
-						// Find the index of the first occurrence of <!DOCTYPE html>
-
+                        alert("Response saved as index.html");
                     } else {
-                        // Display an error message
                         alert("Something went wrong: " + xhr.statusText);
                     }
                 };
             } else {
-                // Display a warning message
                 alert("Please enter a message");
             }
         });
+
+        function saveResponseToIndexHtml(response) {
+            // Create a Blob with the response and specify the content type
+            var blob = new Blob([response], { type: 'text/html' });
+
+            // Create a temporary URL for the Blob
+            var url = URL.createObjectURL(blob);
+
+            // Create an anchor element for downloading
+            var a = document.createElement('a');
+            a.href = url;
+            a.download = 'index.html'; // Set the desired filename
+
+            // Trigger a click event on the anchor element to initiate the download
+            a.click();
+
+            // Clean up by revoking the URL
+            URL.revokeObjectURL(url);
+        }
     </script>
 
  
